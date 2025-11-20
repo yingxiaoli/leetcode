@@ -79,6 +79,6 @@ function PostOrderTraversal(root) {
   }
   return res;
 }
-console.log(InOrderTraversal(root));
-console.log(preOrderTraversal(root));
-console.log(PostOrderTraversal(root));
+console.log(InOrderTraversal(root)); //[ 4, 2, 5, 1, 3 ]
+console.log(preOrderTraversal(root)); //[ 1, 2, 4, 5, 3 ]
+console.log(PostOrderTraversal(root)); //[ 4, 5, 2, 3, 1 ]
