@@ -23,7 +23,7 @@ var maxDepth = function (root) {
     max = Math.max(max, node.depth);
     if (node.left) {
       node.left.depth = node.depth + 1;
-      node.depth = queue.push(node.left);
+      queue.push(node.left);
     }
     if (node.right) {
       node.right.depth = node.depth + 1;
