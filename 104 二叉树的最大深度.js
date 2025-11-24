@@ -1,5 +1,5 @@
 // 104  二叉树的最大深度
-
+// 最大深度，使用深度优先遍历，但是也要全遍历完
 function TreeNode(val, left = null, right = null) {
   this.val = val;
   this.left = left;
