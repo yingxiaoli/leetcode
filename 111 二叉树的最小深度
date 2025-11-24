@@ -1,3 +1,4 @@
+// 求最小深度，使用广度优先遍历，找到第一个叶子节点，就可以提前终止循环
 function TreeNode(val, left = null, right = null) {
   this.val = val;
   this.left = left;
@@ -39,21 +40,19 @@ var minDepth = function (root) {
   if (!root) {
     return 0;
   }
-  let min = Infinity;
-  let stack = [{ ...root, depth: 1 }];
-  while (stack.length) {
-    let node = stack.pop();
+  let queue = [{ ...root, depth: 1 }];
+  while (queue.length) {
+    let node = queue.shift();
     if (!node.left && !node.right) {
-      min = Math.min(min, node.depth);
+      return node.depth;
     }
     if (node.right) {
-      stack.push({ ...node.right, depth: node.depth + 1 });
+      queue.push({ ...node.right, depth: node.depth + 1 });
     }
     if (node.left) {
-      stack.push({ ...node.left, depth: node.depth + 1 });
+      queue.push({ ...node.left, depth: node.depth + 1 });
     }
   }
-  return min;
 };
 
 let root = [3, 9, 20, null, null, 15, 7];
