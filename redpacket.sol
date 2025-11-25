@@ -12,12 +12,13 @@ contract RedPacket {
 
     // 红包结构体
     struct Packet {
-        address payable sender;     // 发红包的人
-        uint256 totalAmount;        // 总金额（wei）
-        uint256 totalParticipants;  // 总抢红包人数（限制）
-        uint256 claimedCount;       // 已抢人数
-        uint256 endTime;              // 截止时间（0表示无限期）
-        bool isRecoverable;         // 是否可收回
+        address payable sender; // 发红包的人
+        uint256 totalAmount; // 总金额（wei）
+        uint256 totalParticipants; // 总抢红包人数（限制）
+        uint256 claimedCount; // 已抢人数
+        uint256 endTime; // 截止时间（0表示无限期）
+        bool isRecoverable; // 是否可收回
+        mapping(address => bool) hasClaimed; // 记录该红包已抢用户
     }
 
     // 抢红包记录
@@ -70,16 +71,22 @@ contract RedPacket {
 
         uint256 id = packetCounter++;
 
-        packets[id] = Packet({
-            sender: payable(msg.sender),
-            totalAmount: msg.value,
-            totalParticipants: totalParticipants,
-            claimedCount: 0,
-            endTime: endTime,
-            isRecoverable: true
-        });
+        Packet storage packet = packets[id];
 
-        emit RedPacketCreated(id, msg.sender, msg.value, totalParticipants, endTime);
+        packet.sender = payable(msg.sender);
+        packet.totalAmount = msg.value;
+        packet.totalParticipants = totalParticipants;
+        packet.claimedCount = 0;
+        packet.endTime = endTime;
+        packet.isRecoverable = true;
+
+        emit RedPacketCreated(
+            id,
+            msg.sender,
+            msg.value,
+            totalParticipants,
+            endTime
+        );
     }
 
     //=======================
@@ -88,17 +95,32 @@ contract RedPacket {
     function claimRedPacket(uint256 id) external {
         Packet storage packet = packets[id];
         require(packet.sender != address(0), "Invalid packet ID");
-        require(packet.isRecoverable, "This packet has been reclaimed or expired");
-        require(packet.claimedCount < packet.totalParticipants, "All slots are filled");
-        require(block.timestamp <= packet.endTime || packet.endTime == 0, "Red packet expired");
+        require(
+            packet.isRecoverable,
+            "This packet has been reclaimed or expired"
+        );
+        require(
+            packet.claimedCount < packet.totalParticipants,
+            "All slots are filled"
+        );
+        require(
+            block.timestamp <= packet.endTime || packet.endTime == 0,
+            "Red packet expired"
+        );
+        require(
+            !packet.hasClaimed[msg.sender],
+            "You have already claimed this red packet"
+        );
 
         // 计算抢到的金额（可简单平均，也可以随机）
-        uint256 remainingAmount = packet.totalAmount - (packet.claimedCount * (packet.totalAmount / packet.totalParticipants));
         uint256 amount = (packet.totalAmount / packet.totalParticipants); // 简单平均（可优化为随机）
 
         // 确保不会因为整除导致金额损失
         if (packet.claimedCount == packet.totalParticipants - 1) {
-            amount = packet.totalAmount - (packet.claimedCount * (packet.totalAmount / packet.totalParticipants));
+            amount =
+                packet.totalAmount -
+                (packet.claimedCount *
+                    (packet.totalAmount / packet.totalParticipants));
         }
 
         // 发送金额
@@ -107,11 +129,14 @@ contract RedPacket {
 
         // 更新记录
         packet.claimedCount++;
-        claimRecords[id].push(ClaimRecord({
-            claimer: msg.sender,
-            amount: amount,
-            timestamp: block.timestamp
-        }));
+        packet.hasClaimed[msg.sender] = true;
+        claimRecords[id].push(
+            ClaimRecord({
+                claimer: msg.sender,
+                amount: amount,
+                timestamp: block.timestamp
+            })
+        );
 
         emit RedPacketClaimed(id, msg.sender, amount, block.timestamp);
 
@@ -126,12 +151,21 @@ contract RedPacket {
     //=======================
     function recoverRemaining(uint256 id) external {
         Packet storage packet = packets[id];
-        require(packet.sender == payable(msg.sender), "Only the sender can recover");
-        require(packet.isRecoverable, "Cannot recover: already claimed or expired");
-        require(packet.claimedCount < packet.totalParticipants, "No remaining amount to recover");
-
-        uint256 remainingAmount = packet.totalAmount - (packet.claimedCount * (packet.totalAmount / packet.totalParticipants));
-        uint256 actualRemaining = (packet.totalAmount - (packet.claimedCount * (packet.totalAmount / packet.totalParticipants)));
+        require(
+            packet.sender == payable(msg.sender),
+            "Only the sender can recover"
+        );
+        require(
+            packet.isRecoverable,
+            "Cannot recover: already claimed or expired"
+        );
+        require(
+            packet.claimedCount < packet.totalParticipants,
+            "No remaining amount to recover"
+        );
+        uint256 actualRemaining = (packet.totalAmount -
+            (packet.claimedCount *
+                (packet.totalAmount / packet.totalParticipants)));
 
         // 安全转账
         (bool sent, ) = payable(msg.sender).call{value: actualRemaining}("");
@@ -140,21 +174,32 @@ contract RedPacket {
         // 标记为不可收回
         packet.isRecoverable = false;
 
-        emit RedPacketRecovered(id, msg.sender, actualRemaining, block.timestamp);
+        emit RedPacketRecovered(
+            id,
+            msg.sender,
+            actualRemaining,
+            block.timestamp
+        );
     }
 
     //=======================
     // 查看红包信息
     //=======================
-    function getPacketInfo(uint256 id) external view returns (
-        address sender,
-        uint256 totalAmount,
-        uint256 totalParticipants,
-        uint256 claimedCount,
-        bool isRecoverable,
-        uint256 endTime
-    ) {
-        Packet memory p = packets[id];
+    function getPacketInfo(
+        uint256 id
+    )
+        external
+        view
+        returns (
+            address sender,
+            uint256 totalAmount,
+            uint256 totalParticipants,
+            uint256 claimedCount,
+            bool isRecoverable,
+            uint256 endTime
+        )
+    {
+        Packet storage p = packets[id];
         return (
             p.sender,
             p.totalAmount,
@@ -165,7 +210,17 @@ contract RedPacket {
         );
     }
 
-    function getClaimRecords(uint256 id) external view returns (ClaimRecord[] memory) {
+    // 查询指定用户是否已领取某个红包
+    function hasUserClaimed(
+        uint256 id,
+        address user
+    ) external view returns (bool) {
+        require(packets[id].sender != address(0), "Invalid packet ID");
+        return packets[id].hasClaimed[user];
+    }
+    function getClaimRecords(
+        uint256 id
+    ) external view returns (ClaimRecord[] memory) {
         return claimRecords[id];
     }
 }
