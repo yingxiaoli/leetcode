@@ -16,7 +16,7 @@ var cloneGraph = function (node) {
     return node;
   }
 
-  const visited = new Set();
+  const visited = new Map();
   const clone = new Node(node.val, []);
   visited.set(node, clone);
   const queue = [node];
