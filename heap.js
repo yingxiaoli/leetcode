@@ -102,7 +102,6 @@ class MinHeap {
     return min;
   }
 }
-====================
 // 使用小顶堆进行排序
 function sort(arr) {
   const heap = new MinHeap();
@@ -116,3 +115,5 @@ function sort(arr) {
 }
 const arr = [2, 12, 3, 4, 9];
 console.log(sort(arr));
+
+====================
